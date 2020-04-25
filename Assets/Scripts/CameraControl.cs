@@ -23,34 +23,19 @@ public class CameraControl : MonoBehaviour
     {
         this.xformCam = this.transform;
         this.xformParent = this.transform.parent;
+        localRotation.y = 32; //start angled 32 up
         camDist = maxDist;
+
     }
 
     void LateUpdate()
     {
         //can add cameradisabled stuff here
 
-
         if (!CameraDisabled)
         {
             if(Input.GetMouseButton(0))
             {
-                /*
-                Debug.Log(parent.transform.rotation.z);
-                //if((parent.transform.rotation.x > 90 && parent.transform.rotation.x <=180) || (parent.transform.rotation.x <-90 && parent.transform.rotation.x >= -180)) 
-                float _z = parent.transform.rotation.z
-                if (_z  )
-                {
-                    Debug.Log("should be not backwards");
-                    localRotation.x -= Input.GetAxis("Mouse X") * mouseSensitivity;
-                    localRotation.y += Input.GetAxis("Mouse Y") * mouseSensitivity;
-                }
-                else 
-                {
-                    localRotation.x += Input.GetAxis("Mouse X") * mouseSensitivity;
-                    localRotation.y -= Input.GetAxis("Mouse Y") * mouseSensitivity;
-                }
-                */
                 localRotation.x += Input.GetAxis("Mouse X") * mouseSensitivity;
                 localRotation.y -= Input.GetAxis("Mouse Y") * mouseSensitivity;
 

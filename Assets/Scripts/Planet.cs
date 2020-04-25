@@ -5,19 +5,28 @@ using UnityEngine;
 // The Planet class is responsible for generating a tiny procedural planet. It does this by subdividing an Icosahedron, then
 // randomly selecting groups of Polygons to extrude outwards. These become the lowlands and hills of the planet, while the
 // unextruded Polygons become the ocean.
-
 public class Planet : MonoBehaviour
 {
     // These public parameters can be tweaked to give different styles to your planet.
+    public enum PlanetType { Earthlike, Volcanic, Fungal, Desolate, Metallic, Ice }
+    public PlanetType planetType;
+    public float planetSize = 1f;
+
+    public Color32 colorOcean;
+    public Color32 colorGrass;
+    public Color32 colorDirt;
+    public Color32 colorDeepOcean;
 
     public Material m_GroundMaterial;
     public Material m_OceanMaterial;
 
-    public int   m_NumberOfContinents = 5;
+    public int   m_NumberOfContinents;// = 5;
+    public int minNumContinents = 2;
     public float m_ContinentSizeMax   = 1.0f;
-    public float m_ContinentSizeMin   = 0.1f;
+    public float m_ContinentSizeMin   = 0.2f;
 
-    public int   m_NumberOfHills = 5;
+    public int   m_NumberOfHills;// = 5;
+    public int minNumHills = 0;
     public float m_HillSizeMax   = 1.0f;
     public float m_HillSizeMin   = 0.1f;
 
@@ -30,12 +39,54 @@ public class Planet : MonoBehaviour
     List<Polygon> m_Polygons;
     List<Vector3> m_Vertices;
 
+    [HideInInspector] public Vector3 initPos;
+    [HideInInspector] public int sunDist;
+
+
     public void Start()
     {
-        // Create an icosahedron, subdivide it three times so that we have plenty of polys
-        // to work with.
+        CreatePlanet();
+        MovePlanet(this, initPos);
+        DrawOrbit();
+        //this.GetComponent<LineRenderer>().enabled = false; //turn back on when enter large zoom?
+    }
+    public void DrawOrbit()
+    {
+        var segments = 360;
+        var line = this.gameObject.GetComponent<LineRenderer>();
+        float lineWidth = 0.05f;
+        line.useWorldSpace = true;
+        line.startWidth = lineWidth;
+        line.endWidth = lineWidth;
+        line.positionCount = segments + 1;
+        //line.material.color = new Color(90, 90, 90, 0f);
+        //line.material.shader
+        //line.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
 
-        InitAsIcosohedron();
+        var pointCount = segments + 1; // add extra point to make startpoint and endpoint the same to close the circle
+        var points = new Vector3[pointCount];
+
+        for (int i = 0; i < pointCount; i++)
+        {
+            var rad = Mathf.Deg2Rad * (i * 360f / segments);
+            points[i] = new Vector3(Mathf.Sin(rad) * sunDist, 0, Mathf.Cos(rad) * sunDist);
+        }
+
+        line.SetPositions(points);
+    }
+    public void MovePlanet(Planet target, Vector3 newPos)
+    {
+        this.transform.position = newPos;
+    }
+    public void CreatePlanet()
+    {
+        // Create an icosahedron, subdivide it three times so that we have plenty of polys to work with.
+        m_NumberOfContinents = minNumContinents;
+        System.Random rnd = new System.Random();
+        //planetSize = rnd.Next(1, 11);
+        planetSize = 10;
+
+        InitAsIcosohedron(planetSize);
         Subdivide(3);
 
         // When we begin extruding polygons, we'll need each one to know who its immediate
@@ -44,11 +95,39 @@ public class Planet : MonoBehaviour
         CalculateNeighbors();
 
         // By default, everything is colored blue. As we extrude land forms, we'll change their colors to match.
+        // Picks a random planet type initially
+        planetType = (PlanetType)rnd.Next(5);
+        //planetType = PlanetType.Volcanic;
 
-        Color32 colorOcean     = new Color32(  0,  80, 220,   0);
-        Color32 colorGrass     = new Color32(  0, 220,   0,   0);
-        Color32 colorDirt      = new Color32(180, 140,  20,   0);
-        Color32 colorDeepOcean = new Color32(  0,  40, 110,   0);
+        //  = new Color32(255, 0, 255, 255); hot pink
+        switch (planetType)
+        {
+            case PlanetType.Earthlike:
+                colorOcean = new Color32(0, 80, 220, 0);
+                colorGrass = new Color32(0, 220, 0, 0);
+                colorDirt = new Color32(180, 140, 20, 0);
+                colorDeepOcean = new Color32(0, 40, 110, 0);
+                break;
+            case PlanetType.Volcanic:
+                //colorOcean = new Color32(0, 80, 220, 0);
+                colorOcean = HueColour.HueColourValue(HueColour.HueColorNames.Red);
+                colorGrass = HueColour.HueColourValue(HueColour.HueColorNames.GrayDark);
+                colorDirt = HueColour.HueColourValue(HueColour.HueColorNames.RedDeep);
+                colorDeepOcean = HueColour.HueColourValue(HueColour.HueColorNames.RedDeep);
+                break;
+            default:
+                colorOcean = new Color32(0, 80, 220, 0);
+                colorGrass = new Color32(0, 220, 0, 0);
+                colorDirt = new Color32(180, 140, 20, 0);
+                colorDeepOcean = new Color32(0, 40, 110, 0);
+                break;
+        }
+
+        //pick the planet size attributes
+        m_NumberOfContinents = rnd.Next(1, 10);
+        m_NumberOfHills = rnd.Next(0, 10);
+
+
 
         foreach (Polygon p in m_Polygons)
             p.m_Color = colorOcean;
@@ -62,7 +141,7 @@ public class Planet : MonoBehaviour
 
         // Grab polygons that are inside random spheres. These will be the basis of our planet's continents.
 
-        for(int i = 0; i < m_NumberOfContinents; i++)
+        for (int i = 0; i < m_NumberOfContinents; i++)
         {
             float continentSize = Random.Range(m_ContinentSizeMin, m_ContinentSizeMax);
 
@@ -153,7 +232,7 @@ public class Planet : MonoBehaviour
         m_GroundMesh = GenerateMesh("Ground Mesh", m_GroundMaterial);
     }
 
-    public void InitAsIcosohedron()
+    public void InitAsIcosohedron(float size)
     {
         m_Polygons = new List<Polygon>();
         m_Vertices = new List<Vector3>();
@@ -164,6 +243,8 @@ public class Planet : MonoBehaviour
         // symmetrical too:
 
         float t = (1.0f + Mathf.Sqrt(5.0f)) / 2.0f;
+        //t *= size;
+        //Debug.Log(t);
 
         m_Vertices.Add(new Vector3(-1,  t,  0).normalized);
         m_Vertices.Add(new Vector3( 1,  t,  0).normalized);
@@ -493,4 +574,58 @@ public class Planet : MonoBehaviour
 
         return meshObject;
     }
+}
+
+
+public class HueColour
+{
+
+    public enum HueColorNames
+    {
+        Lime,
+        Green,
+        Aqua,
+        Blue,
+        Navy,
+        Purple,
+        Pink,
+        Red,
+        Orange,
+        Yellow,
+        Brown,
+        LightGreen,
+        White,
+        GrayDark,
+        Gray,
+        BlueOcean,
+        BlueDeep,
+        RedDeep
+    }
+
+    private static Hashtable hueColourValues = new Hashtable{
+         { HueColorNames.Lime,     new Color32( 166 , 254 , 0, 1 ) },
+         { HueColorNames.LightGreen,     new Color32( 0 , 254 , 111, 1 ) },
+         { HueColorNames.Aqua,     new Color32( 0 , 201 , 254, 1 ) },
+         { HueColorNames.Blue,     new Color32( 0 , 122 , 254, 1 ) },
+         { HueColorNames.Navy,     new Color32( 60 , 0 , 254, 1 ) },
+         { HueColorNames.Purple, new Color32( 143 , 0 , 254, 1 ) },
+         { HueColorNames.Pink,     new Color32( 232 , 0 , 254, 1 ) },
+         { HueColorNames.Red,     new Color32( 243 , 57 , 57, 0 ) },
+         { HueColorNames.RedDeep,     new Color32( 95 , 0 , 0, 0 ) },
+         { HueColorNames.Orange, new Color32( 254 , 161 , 0, 1 ) },
+         { HueColorNames.Yellow, new Color32( 254 , 224 , 0, 1 ) },
+         { HueColorNames.Brown,  new Color32(180, 140,  20,   0) },
+         { HueColorNames.Green, new Color32(0, 220, 0, 0) },
+         { HueColorNames.White, new Color32( 255, 255, 255, 1 ) },
+         { HueColorNames.Gray, new Color32( 161, 156, 156, 1 ) },
+         { HueColorNames.BlueOcean, new Color32(0, 80, 220, 0) },
+         { HueColorNames.BlueDeep, new Color32(0, 40, 110, 0) },
+         { HueColorNames.GrayDark, new Color32(61, 61, 61, 1) },
+};
+
+    public static Color32 HueColourValue(HueColorNames color)
+    {
+        return (Color32)hueColourValues[color];
+    }
+
 }
